@@ -1,0 +1,475 @@
+#include "../include/common.h"
+#include "../include/logger.h"
+#include "../include/data_loader.h"
+#include "../include/report.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <pthread.h>
+#include <time.h>
+#include <unistd.h>
+
+/* ---------- Глобальные данные ---------- */
+
+static ProductList   g_products;
+static CustomerList  g_customers;
+static SaleList      g_sales;
+
+/* ---------- Параметры, изменяемые пользователем ---------- */
+
+typedef struct {
+    double          hv_threshold;     /* порог для крупных покупателей */
+    int             top_n;            /* размер топа популярности */
+    volatile int    report_requested; /* флаг запроса нового отчёта */
+    volatile int    shutdown;         /* флаг завершения программы */
+    pthread_mutex_t lock;             /* мьютекс для защиты полей */
+} RuntimeParams;
+
+static RuntimeParams g_params = {
+    .hv_threshold     = 500.0,
+    .top_n            = 5,
+    .report_requested = 0,
+    .shutdown         = 0,
+    .lock             = PTHREAD_MUTEX_INITIALIZER,
+};
+
+/* ---------- Результаты анализа ---------- */
+
+static TotalResult       g_total;
+static PopularityResult  g_popularity;
+static HighValueResult   g_highvalue;
+static TrendResult       g_trend;
+
+/* Барьер: 4 потока анализа + главный поток = 5 участников. */
+static pthread_barrier_t g_barrier;
+
+/* ---------- Функции линейного поиска ---------- */
+
+/* Поиск цены товара по ID (линейный перебор). */
+static double get_product_price(int product_id) {
+    for (int i = 0; i < g_products.count; i++) {
+        if (g_products.items[i].id == product_id)
+            return g_products.items[i].price;
+    }
+    return 0.0;
+}
+
+/* Поиск названия товара по ID. */
+static const char *get_product_name(int product_id) {
+    for (int i = 0; i < g_products.count; i++) {
+        if (g_products.items[i].id == product_id)
+            return g_products.items[i].name;
+    }
+    return "???";
+}
+
+/* Поиск имени покупателя по ID. */
+static const char *get_customer_name(int customer_id) {
+    for (int i = 0; i < g_customers.count; i++) {
+        if (g_customers.items[i].id == customer_id)
+            return g_customers.items[i].name;
+    }
+    return "???";
+}
+
+/* ---------- Поток 1: общая сумма продаж ---------- */
+
+static void *thread_total_sum(void *arg) {
+    (void)arg;
+    LOG_I("[Сумма] Старт");
+
+    double sum = 0.0;
+    for (int i = 0; i < g_sales.count; i++) {
+        sum += get_product_price(g_sales.items[i].product_id);
+    }
+
+    g_total.total_sum   = sum;
+    g_total.total_sales = g_sales.count;
+
+    LOG_I("[Сумма] Готово: продаж=%d, сумма=%.2f", g_sales.count, sum);
+
+    /* Ожидаем завершения всех потоков анализа. */
+    pthread_barrier_wait(&g_barrier);
+    return NULL;
+}
+
+/* ---------- Поток 2: популярность товаров ---------- */
+
+typedef struct {
+    int    product_id;
+    int    sold_count;
+    double revenue;
+} ProductStat;
+
+/* Сортировка по убыванию количества продаж. */
+static int cmp_pop_desc(const void *a, const void *b) {
+    const ProductStat *x = a, *y = b;
+    if (y->sold_count != x->sold_count)
+        return y->sold_count - x->sold_count;
+    return x->product_id - y->product_id;
+}
+
+static void *thread_popularity(void *arg) {
+    (void)arg;
+    LOG_I("[Популярность] Старт");
+
+    /* Собираем статистику по каждому товару. */
+    ProductStat stats[MAX_PRODUCTS];
+    for (int i = 0; i < g_products.count; i++) {
+        stats[i].product_id = g_products.items[i].id;
+        stats[i].sold_count = 0;
+        stats[i].revenue    = 0.0;
+    }
+
+    for (int s = 0; s < g_sales.count; s++) {
+        int pid = g_sales.items[s].product_id;
+        for (int i = 0; i < g_products.count; i++) {
+            if (stats[i].product_id == pid) {
+                stats[i].sold_count++;
+                stats[i].revenue += g_products.items[i].price;
+                break;
+            }
+        }
+    }
+
+    qsort(stats, g_products.count, sizeof(ProductStat), cmp_pop_desc);
+
+    /* Читаем актуальный размер топа. */
+    pthread_mutex_lock(&g_params.lock);
+    int top_n = g_params.top_n;
+    pthread_mutex_unlock(&g_params.lock);
+    if (top_n > g_products.count) top_n = g_products.count;
+
+    /* ТОП-N популярных. */
+    g_popularity.top_count = top_n;
+    for (int i = 0; i < top_n; i++) {
+        g_popularity.top[i].product_id = stats[i].product_id;
+        strncpy(g_popularity.top[i].product_name,
+                get_product_name(stats[i].product_id), MAX_NAME_LEN - 1);
+        g_popularity.top[i].sold_count = stats[i].sold_count;
+        g_popularity.top[i].revenue    = stats[i].revenue;
+    }
+
+    /* ТОП-N непопулярных (с конца отсортированного массива). */
+    g_popularity.bottom_count = top_n;
+    for (int i = 0; i < top_n; i++) {
+        int idx = g_products.count - 1 - i;
+        g_popularity.bottom[i].product_id = stats[idx].product_id;
+        strncpy(g_popularity.bottom[i].product_name,
+                get_product_name(stats[idx].product_id), MAX_NAME_LEN - 1);
+        g_popularity.bottom[i].sold_count = stats[idx].sold_count;
+        g_popularity.bottom[i].revenue    = stats[idx].revenue;
+    }
+
+    LOG_I("[Популярность] Готово");
+    pthread_barrier_wait(&g_barrier);
+    return NULL;
+}
+
+/* ---------- Поток 3: крупные покупатели ---------- */
+
+static void *thread_high_value(void *arg) {
+    (void)arg;
+    LOG_I("[Крупные покупатели] Старт");
+
+    /* Считаем сумму покупок по каждому покупателю. */
+    double spent[MAX_CUSTOMERS];
+    int    seen[MAX_CUSTOMERS];
+    int    seen_count = 0;
+    memset(spent, 0, sizeof(spent));
+    memset(seen, 0, sizeof(seen));
+
+    for (int s = 0; s < g_sales.count; s++) {
+        int cid = g_sales.items[s].customer_id;
+        double price = get_product_price(g_sales.items[s].product_id);
+
+        /* Ищем индекс покупателя в массиве seen. */
+        int idx = -1;
+        for (int i = 0; i < seen_count; i++) {
+            if (seen[i] == cid) { idx = i; break; }
+        }
+        if (idx == -1) {
+            idx = seen_count++;
+            seen[idx] = cid;
+        }
+        spent[idx] += price;
+    }
+
+    /* Читаем актуальный порог. */
+    pthread_mutex_lock(&g_params.lock);
+    double threshold = g_params.hv_threshold;
+    pthread_mutex_unlock(&g_params.lock);
+
+    /* Освобождаем предыдущий результат. */
+    free(g_highvalue.items);
+    g_highvalue.items = calloc(seen_count, sizeof(HighValueCustomer));
+    g_highvalue.count = 0;
+    g_highvalue.threshold = threshold;
+
+    /* Собираем покупателей, превысивших порог. */
+    for (int i = 0; i < seen_count; i++) {
+        if (spent[i] >= threshold) {
+            HighValueCustomer *h = &g_highvalue.items[g_highvalue.count++];
+            h->customer_id = seen[i];
+            strncpy(h->customer_name, get_customer_name(seen[i]), MAX_NAME_LEN - 1);
+            h->spent = spent[i];
+        }
+    }
+
+    LOG_I("[Крупные покупатели] Готово: найдено %d (порог=%.2f)",
+          g_highvalue.count, threshold);
+    pthread_barrier_wait(&g_barrier);
+    return NULL;
+}
+
+/* ---------- Поток 4: тенденции продаж ---------- */
+
+/* Приведение времени к началу дня. */
+static time_t normalize_to_day(time_t t) {
+    struct tm tm_info;
+    localtime_r(&t, &tm_info);
+    tm_info.tm_hour = tm_info.tm_min = tm_info.tm_sec = 0;
+    return mktime(&tm_info);
+}
+
+/* Сортировка точек тренда по дате. */
+static int cmp_time_asc(const void *a, const void *b) {
+    const TrendPoint *x = a, *y = b;
+    return (x->day > y->day) - (x->day < y->day);
+}
+
+static void *thread_trends(void *arg) {
+    (void)arg;
+    LOG_I("[Тенденции] Старт");
+
+    /* Агрегируем продажи по дням. */
+    TrendPoint *tmp = calloc(g_sales.count + 1, sizeof(TrendPoint));
+    int cnt = 0;
+
+    for (int s = 0; s < g_sales.count; s++) {
+        time_t day = normalize_to_day(g_sales.items[s].timestamp);
+        double price = get_product_price(g_sales.items[s].product_id);
+
+        /* Ищем существующую запись для этого дня. */
+        int idx = -1;
+        for (int i = 0; i < cnt; i++) {
+            if (tmp[i].day == day) { idx = i; break; }
+        }
+        if (idx == -1) {
+            idx = cnt++;
+            tmp[idx].day = day;
+            tmp[idx].sales_count = 0;
+            tmp[idx].revenue = 0.0;
+        }
+        tmp[idx].sales_count++;
+        tmp[idx].revenue += price;
+    }
+
+    qsort(tmp, cnt, sizeof(TrendPoint), cmp_time_asc);
+
+    free(g_trend.points);
+    g_trend.points = tmp;
+    g_trend.count  = cnt;
+
+    LOG_I("[Тенденции] Готово: дней=%d", cnt);
+    pthread_barrier_wait(&g_barrier);
+    return NULL;
+}
+
+/* ---------- Поток 5: пользовательский ввод ---------- */
+
+/* Вывод меню команд. */
+static void print_menu(void) {
+    printf("\n=== КОМАНДЫ ===\n"
+           "  t <сумма> - порог крупных покупателей\n"
+           "  n <N>     - размер топа популярности\n"
+           "  r         - сформировать новый отчёт\n"
+           "  s         - показать текущие результаты\n"
+           "  q         - выход\n"
+           "===============\n");
+}
+
+/*
+ * Поток пользовательского ввода.
+ * Работает параллельно с главным потоком, устанавливает флаги в g_params.
+ */
+static void *thread_user_input(void *arg) {
+    (void)arg;
+    print_menu();
+
+    char line[256];
+    while (!g_params.shutdown) {
+        if (!fgets(line, sizeof(line), stdin)) {
+            usleep(100000);
+            continue;
+        }
+
+        char cmd;
+        double val;
+
+        if (sscanf(line, " %c %lf", &cmd, &val) >= 1) {
+            switch (cmd) {
+                case 't': case 'T':
+                    pthread_mutex_lock(&g_params.lock);
+                    g_params.hv_threshold = val;
+                    pthread_mutex_unlock(&g_params.lock);
+                    LOG_I("Пользователь: порог = %.2f", val);
+                    printf("Порог изменён на %.2f\n", val);
+                    break;
+
+                case 'n': case 'N': {
+                    int n = (int)val;
+                    if (n < 1)  n = 1;
+                    if (n > 20) n = 20;
+                    pthread_mutex_lock(&g_params.lock);
+                    g_params.top_n = n;
+                    pthread_mutex_unlock(&g_params.lock);
+                    LOG_I("Пользователь: топ = %d", n);
+                    printf("Размер топа изменён на %d\n", n);
+                    break;
+                }
+
+                case 'r': case 'R':
+                    __sync_fetch_and_add(&g_params.report_requested, 1);
+                    printf("Запрошено формирование отчёта...\n");
+                    break;
+
+                case 's': case 'S':
+                    pthread_mutex_lock(&g_params.lock);
+                    printf("\n--- Текущие результаты ---\n"
+                           "Продаж: %d, сумма: %.2f руб.\n"
+                           "Порог крупных покупателей: %.2f руб.\n"
+                           "Крупных покупателей: %d\n"
+                           "Размер топа: %d\n"
+                           "--------------------------\n",
+                           g_total.total_sales, g_total.total_sum,
+                           g_params.hv_threshold, g_highvalue.count,
+                           g_params.top_n);
+                    pthread_mutex_unlock(&g_params.lock);
+                    break;
+
+                case 'q': case 'Q':
+                    g_params.shutdown = 1;
+                    printf("Завершение работы...\n");
+                    break;
+
+                default:
+                    print_menu();
+                    break;
+            }
+        }
+    }
+    return NULL;
+}
+
+/* ---------- Формирование отчёта с уникальным именем ---------- */
+
+static void generate_report(void) {
+    time_t now = time(NULL);
+    struct tm tm_info;
+    localtime_r(&now, &tm_info);
+    char time_buf[32], path[MAX_PATH_LEN];
+    strftime(time_buf, sizeof(time_buf), "%Y%m%d_%H%M%S", &tm_info);
+    snprintf(path, sizeof(path), "%s/report_%s.txt", REPORTS_DIR, time_buf);
+
+    report_generate(path, &g_total, &g_popularity, &g_highvalue, &g_trend);
+    printf("Отчёт сохранён: %s\n", path);
+}
+
+/* ---------- Главная функция ---------- */
+
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
+
+    create_directories();
+    logger_init("logs/processor.log");
+    logger_set_level(LOG_INFO);
+    LOG_I("=== Обработчик запущен ===");
+
+    if (generate_test_data() != 0) return 1;
+    if (load_products(PRODUCTS_FILE, &g_products) != 0) return 1;
+    if (load_customers(CUSTOMERS_FILE, &g_customers) != 0) return 1;
+    if (load_sales(SALES_FILE, &g_sales) != 0) return 1;
+
+    if (g_sales.count == 0) {
+        LOG_W("Файл продаж пуст. Запустите сначала симулятор.");
+        printf("Файл продаж пуст. Сначала запустите симулятор.\n");
+        logger_close();
+        return 0;
+    }
+
+    /* Инициализация барьера: 4 потока анализа + главный = 5. */
+    pthread_barrier_init(&g_barrier, NULL, 5);
+
+    /* Запуск 4 потоков анализа. */
+    pthread_t t1, t2, t3, t4, t_user;
+    LOG_I("Запуск потоков анализа...");
+    pthread_create(&t1, NULL, thread_total_sum,    NULL);
+    pthread_create(&t2, NULL, thread_popularity,   NULL);
+    pthread_create(&t3, NULL, thread_high_value,   NULL);
+    pthread_create(&t4, NULL, thread_trends,       NULL);
+
+    /* Запуск потока пользовательского ввода. */
+    pthread_create(&t_user, NULL, thread_user_input, NULL);
+
+    /* Главный поток ждёт, пока все 4 потока анализа достигнут барьера. */
+    pthread_barrier_wait(&g_barrier);
+    LOG_I("Все потоки анализа завершили работу");
+
+    /* Формируем первый отчёт. */
+    generate_report();
+    printf("\nИспользуйте команды для изменения параметров.\n");
+
+    /*
+     * Цикл обработки запросов на новые отчёты.
+     * Поток ввода устанавливает флаг report_requested,
+     * главный поток проверяет его и перезапускает нужные потоки.
+     */
+    int last_report_id = 0;
+    while (!g_params.shutdown) {
+        int cur = g_params.report_requested;
+        if (cur > last_report_id) {
+            last_report_id = cur;
+
+            /*
+             * Перезапускаем потоки, зависящие от изменяемых параметров:
+             * - популярность (зависит от top_n)
+             * - крупные покупатели (зависит от hv_threshold)
+             */
+            pthread_barrier_destroy(&g_barrier);
+            pthread_barrier_init(&g_barrier, NULL, 3);
+
+            pthread_join(t2, NULL);
+            pthread_join(t3, NULL);
+
+            pthread_create(&t2, NULL, thread_popularity, NULL);
+            pthread_create(&t3, NULL, thread_high_value, NULL);
+
+            /* Ждём завершения перезапущенных потоков. */
+            pthread_barrier_wait(&g_barrier);
+
+            generate_report();
+        }
+        usleep(200000);
+    }
+
+    /* Завершение работы. */
+    pthread_cancel(t_user);
+    pthread_join(t_user, NULL);
+
+    pthread_join(t1, NULL);
+    pthread_join(t2, NULL);
+    pthread_join(t3, NULL);
+    pthread_join(t4, NULL);
+
+    /* Освобождение ресурсов. */
+    free(g_highvalue.items);
+    free(g_trend.points);
+    pthread_barrier_destroy(&g_barrier);
+    pthread_mutex_destroy(&g_params.lock);
+
+    LOG_I("=== Обработчик завершён ===");
+    logger_close();
+    return 0;
+}
