@@ -1,0 +1,95 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Документ — Складской учёт</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <header class="header">
+        <div class="header-top">
+            <span class="header-title">Складской учёт</span>
+            <span class="header-user">
+                Пользователь: {{ user.second_name }} {{ user.first_name }} ({{ user.role.name }})
+            </span>
+            <a href="{% url 'logout' %}" class="header-logout" title="Выйти">⎋</a>
+        </div>
+        <nav class="header-nav">
+            <a href="{% url 'home' %}" class="nav-link">Главная</a>
+            <a href="{% url 'directories' %}" class="nav-link">Справочники</a>
+            <a href="{% url 'documents' %}" class="nav-link active">Документы</a>
+        </nav>
+    </header>
+
+    <main class="main-content">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="page-title">
+            {% if doc_type == 'plus' %}Поставка товара
+            {% elif doc_type == 'minus' %}Списание товара
+            {% elif doc_type == 'remove' %}Перемещение товара
+            {% elif doc_type == 'sell' %}Реализация товара
+            {% endif %}
+            №{{ doc.id|stringformat:"08d" }}
+        </div>
+
+        <div class="doc-detail-card">
+            <div class="doc-detail-header">
+                <div class="doc-detail-info">
+                    {% if doc_type == 'plus' %}
+                        <p><strong>Склад:</strong> {{ doc.sklad.name }}</p>
+                        <p><strong>Поставщик:</strong> {{ doc.importer.name }}</p>
+                    {% elif doc_type == 'minus' %}
+                        <p><strong>Склад:</strong> {{ doc.sklad.name }}</p>
+                        <p><strong>Причина:</strong> {{ doc.reason.name }}</p>
+                    {% elif doc_type == 'remove' %}
+                        <p><strong>Отправитель:</strong> {{ doc.sklad_sender.name }}</p>
+                        <p><strong>Получатель:</strong> {{ doc.sklad_getter.name }}</p>
+                    {% elif doc_type == 'sell' %}
+                        <p><strong>Склад:</strong> {{ doc.sklad.name }}</p>
+                        <p><strong>Клиент:</strong> {{ doc.client.name }}</p>
+                    {% endif %}
+                    <p><strong>Дата:</strong> {{ doc.date|date:"d.m.Y" }}</p>
+                    <p><strong>Статус:</strong> {% if doc.is_using %}Проведён{% else %}Не проведён{% endif %}</p>
+                </div>
+            </div>
+
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>№</th>
+                        <th>Артикул</th>
+                        <th>Название товара</th>
+                        <th>Количество</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in lines %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ line.product.articul }}</td>
+                        <td>{{ line.product.name }}</td>
+                        <td>{{ line.count }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="empty-cell">Нет строк</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <div class="doc-actions" style="margin-top: 20px;">
+                {% if user.can_use %}
+                <a href="{% url 'edit_document' doc_type doc.id %}" class="btn btn-secondary">Редактировать</a>
+                {% endif %}
+                <a href="{% url 'documents' %}" class="btn btn-secondary">Назад к списку</a>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

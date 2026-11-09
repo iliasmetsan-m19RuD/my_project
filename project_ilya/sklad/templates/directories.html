@@ -1,0 +1,61 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Справочники — Складской учёт</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <header class="header">
+        <div class="header-top">
+            <span class="header-title">Складской учёт</span>
+            <span class="header-user">
+                Пользователь: {{ user.second_name }} {{ user.first_name }} ({{ user.role.name }})
+            </span>
+            <a href="{% url 'logout' %}" class="header-logout" title="Выйти">⎋</a>
+        </div>
+        <nav class="header-nav">
+            <a href="{% url 'home' %}" class="nav-link">Главная</a>
+            <a href="{% url 'directories' %}" class="nav-link active">Справочники</a>
+            <a href="{% url 'documents' %}" class="nav-link">Документы</a>
+        </nav>
+    </header>
+
+    <main class="main-content">
+        <div class="page-title">Справочники</div>
+        <div class="page-subtitle">Выберите справочник для просмотра</div>
+
+        <div class="directories-list">
+            <a href="{% url 'directory_detail' 'roles' %}" class="dir-link">
+                <span class="dir-name">Роли</span>
+            </a>
+
+            <a href="{% url 'directory_detail' 'users' %}" class="dir-link">
+                <span class="dir-name">Сотрудники</span>
+            </a>
+
+            <a href="{% url 'directory_detail' 'sklads' %}" class="dir-link">
+                <span class="dir-name">Склады</span>
+            </a>
+
+            <a href="{% url 'directory_detail' 'counteragents' %}" class="dir-link">
+                <span class="dir-name">Контрагенты</span>
+            </a>
+
+            <a href="{% url 'directory_detail' 'groups' %}" class="dir-link">
+                <span class="dir-name">Группы товаров</span>
+            </a>
+
+            <a href="{% url 'directory_detail' 'products' %}" class="dir-link">
+                <span class="dir-name">Товары</span>
+            </a>
+
+            <a href="{% url 'directory_detail' 'reasons' %}" class="dir-link">
+                <span class="dir-name">Причины списания</span>
+            </a>
+        </div>
+    </main>
+</body>
+</html>

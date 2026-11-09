@@ -1,0 +1,504 @@
+/* ===== ОБНУЛЕНИЕ ===== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background-color: #f0f2f5;
+    color: #333;
+    min-height: 100vh;
+}
+
+/* ===== ШАПКА ===== */
+.header {
+    background-color: #5a7a96;
+    color: white;
+}
+
+.header-top {
+    display: flex;
+    align-items: center;
+    padding: 12px 24px;
+    gap: 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+
+.header-title {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.header-user {
+    font-size: 14px;
+    opacity: 0.9;
+    flex: 1;
+}
+
+.header-logout {
+    color: white;
+    text-decoration: none;
+    font-size: 20px;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.header-logout:hover {
+    opacity: 1;
+}
+
+.header-nav {
+    display: flex;
+    padding: 0 24px;
+    gap: 4px;
+}
+
+.nav-link {
+    color: rgba(255,255,255,0.8);
+    text-decoration: none;
+    padding: 10px 20px;
+    font-size: 14px;
+    transition: all 0.2s;
+    border-bottom: 3px solid transparent;
+}
+
+.nav-link:hover,
+.nav-link.active {
+    color: white;
+    background-color: rgba(255,255,255,0.1);
+    border-bottom-color: white;
+}
+
+/* ===== ОСНОВНОЙ КОНТЕНТ ===== */
+.main-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 30px 24px;
+}
+
+/* ===== ЗАГОЛОВКИ ===== */
+.page-title {
+    font-size: 32px;
+    font-weight: 300;
+    text-align: center;
+    margin-bottom: 4px;
+    color: #222;
+}
+
+.page-subtitle {
+    font-size: 28px;
+    font-weight: 400;
+    text-align: center;
+    margin-bottom: 24px;
+    color: #444;
+}
+
+/* ===== ФИЛЬТРЫ ===== */
+.filters-bar {
+    background: white;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.filters-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+.filter-date-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    font-size: 14px;
+    color: #666;
+}
+
+/* ===== ФОРМЫ ===== */
+.form-input,
+.form-select {
+    padding: 8px 14px;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    font-size: 14px;
+    background: white;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.form-input:focus,
+.form-select:focus {
+    border-color: #5a7a96;
+}
+
+.form-input {
+    min-width: 200px;
+}
+
+.form-select {
+    min-width: 180px;
+    cursor: pointer;
+}
+
+.form-label {
+    font-size: 14px;
+    color: #555;
+    min-width: 120px;
+}
+
+.form-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.form-row-submit {
+    justify-content: flex-end;
+    margin-top: 24px;
+}
+
+/* ===== КНОПКИ ===== */
+.btn {
+    display: inline-block;
+    padding: 10px 24px;
+    border: none;
+    border-radius: 25px;
+    font-size: 15px;
+    cursor: pointer;
+    text-decoration: none;
+    text-align: center;
+    transition: all 0.2s;
+    font-weight: 500;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.btn-primary {
+    background-color: #a0d4f5;
+    color: #222;
+}
+
+.btn-success {
+    background-color: #4cd964;
+    color: white;
+}
+
+.btn-danger {
+    background-color: #f28b8b;
+    color: white;
+}
+
+.btn-info {
+    background-color: #a0d4f5;
+    color: #222;
+}
+
+.btn-secondary {
+    background-color: #e0e0e0;
+    color: #333;
+}
+
+.btn-link {
+    color: #5a7a96;
+    text-decoration: underline;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.btn-link:hover {
+    color: #3a5a76;
+}
+
+.add-buttons {
+    margin-left: auto;
+}
+
+/* ===== ТАБЛИЦЫ ===== */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.data-table th,
+.data-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border: 1px solid #e0e0e0;
+    font-size: 14px;
+}
+
+.data-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #555;
+}
+
+.data-table tr:hover {
+    background-color: #f5f7fa;
+}
+
+.empty-cell {
+    text-align: center;
+    color: #999;
+    padding: 40px !important;
+}
+
+/* ===== СПИСОК ДОКУМЕНТОВ ===== */
+.documents-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.document-card {
+    display: flex;
+    align-items: center;
+    background: white;
+    border-radius: 12px;
+    padding: 20px 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    gap: 24px;
+}
+
+.doc-preview {
+    flex-shrink: 0;
+}
+
+.doc-preview-table table {
+    font-size: 11px;
+    border-collapse: collapse;
+    width: 180px;
+}
+
+.doc-preview-table th,
+.doc-preview-table td {
+    border: 1px solid #ddd;
+    padding: 3px 6px;
+}
+
+.doc-preview-table th {
+    background: #f0f0f0;
+}
+
+.doc-info {
+    flex: 1;
+}
+
+.doc-title {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: #222;
+}
+
+.doc-meta {
+    display: flex;
+    gap: 24px;
+    font-size: 15px;
+    color: #666;
+}
+
+.doc-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px;
+    color: #999;
+    font-size: 16px;
+}
+
+/* ===== ДЕТАЛИ ДОКУМЕНТА ===== */
+.doc-detail-card {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.doc-detail-header {
+    margin-bottom: 24px;
+}
+
+.doc-detail-info p {
+    font-size: 15px;
+    margin-bottom: 8px;
+    color: #444;
+}
+
+.doc-detail-info strong {
+    color: #222;
+}
+
+/* ===== КАРТОЧКА ДОБАВЛЕНИЯ ===== */
+.add-doc-card {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.form-section {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.form-section h3 {
+    font-size: 18px;
+    margin-bottom: 16px;
+    color: #333;
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+/* ===== СТРАНИЦА АВТОРИЗАЦИИ ===== */
+.login-body {
+    background-color: #5a7a96;
+    display: flex;
+    flex-direction: column;
+}
+
+.login-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+}
+
+.login-card {
+    background: white;
+    border-radius: 20px;
+    padding: 50px 60px;
+    width: 100%;
+    max-width: 600px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+}
+
+.login-title {
+    text-align: center;
+    font-size: 32px;
+    font-weight: 400;
+    margin-bottom: 40px;
+    color: #222;
+}
+
+.login-form .form-row {
+    justify-content: flex-start;
+}
+
+.login-form .form-label {
+    font-size: 20px;
+    min-width: 100px;
+    color: #333;
+}
+
+.login-form .form-input {
+    flex: 1;
+    padding: 12px 18px;
+    font-size: 16px;
+    border-radius: 12px;
+    min-width: 0;
+}
+
+.login-form .form-row-submit {
+    justify-content: flex-end;
+}
+
+.login-form .btn-primary {
+    padding: 12px 40px;
+    font-size: 18px;
+    border-radius: 30px;
+}
+
+/* ===== УВЕДОМЛЕНИЯ ===== */
+.alert {
+    padding: 12px 20px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 14px;
+}
+
+.alert-error {
+    background-color: #fde8e8;
+    color: #c0392b;
+    border: 1px solid #f5c6cb;
+}
+
+.alert-success {
+    background-color: #e8fde8;
+    color: #27ae60;
+    border: 1px solid #c3e6cb;
+}
+
+/* ===== СПИСОК СПРАВОЧНИКОВ ===== */
+.directories-list {
+    max-width: 600px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.dir-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    padding: 20px 24px;
+    border-radius: 12px;
+    text-decoration: none;
+    color: #333;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    transition: all 0.2s;
+    border: 2px solid transparent;
+}
+
+.dir-link:hover {
+    border-color: #5a7a96;
+    transform: translateX(8px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+
+.dir-name {
+    font-size: 18px;
+    font-weight: 500;
+}
+
+/* ===== ФОТО ДОКУМЕНТА ===== */
+.doc-photo {
+    width: 180px;
+    height: 240px;
+    object-fit: cover;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Заглушка когда нет фото */
+.doc-photo-placeholder {
+    opacity: 0.5;
+    filter: grayscale(100%);
+}

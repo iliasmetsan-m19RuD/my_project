@@ -1,0 +1,197 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Новый документ — Складской учёт</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <header class="header">
+        <div class="header-top">
+            <span class="header-title">Складской учёт</span>
+            <span class="header-user">
+                Пользователь: {{ user.second_name }} {{ user.first_name }} ({{ user.role.name }})
+            </span>
+            <a href="{% url 'logout' %}" class="header-logout" title="Выйти">⎋</a>
+        </div>
+        <nav class="header-nav">
+            <a href="{% url 'home' %}" class="nav-link">Главная</a>
+            <a href="{% url 'directories' %}" class="nav-link">Справочники</a>
+            <a href="{% url 'documents' %}" class="nav-link active">Документы</a>
+        </nav>
+    </header>
+
+    <main class="main-content">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="page-title">
+            {% if doc_type == 'plus' %}Новая поставка
+            {% elif doc_type == 'minus' %}Новое списание
+            {% elif doc_type == 'remove' %}Новое перемещение
+            {% elif doc_type == 'sell' %}Новая реализация
+            {% endif %}
+        </div>
+
+        <div class="add-doc-card">
+            <form method="post" id="docForm" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                <div class="form-section">
+                    <h3>Основная информация</h3>
+
+                    {% if doc_type == 'plus' %}
+                        <div class="form-row">
+                            <label class="form-label">Склад:</label>
+                            <select name="sklad" class="form-select" required>
+                                <option value="">-- Выберите склад --</option>
+                                {% for s in sklads %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">Поставщик:</label>
+                            <select name="importer" class="form-select" required>
+                                <option value="">-- Выберите поставщика --</option>
+                                {% for imp in importers %}<option value="{{ imp.id }}">{{ imp.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                    {% elif doc_type == 'minus' %}
+                        <div class="form-row">
+                            <label class="form-label">Склад:</label>
+                            <select name="sklad" class="form-select" required>
+                                <option value="">-- Выберите склад --</option>
+                                {% for s in sklads %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">Причина:</label>
+                            <select name="reason" class="form-select" required>
+                                <option value="">-- Выберите причину --</option>
+                                {% for r in reasons %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                    {% elif doc_type == 'remove' %}
+                        <div class="form-row">
+                            <label class="form-label">Склад-отправитель:</label>
+                            <select name="sklad_sender" class="form-select" required>
+                                <option value="">-- Выберите склад --</option>
+                                {% for s in sklads %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">Склад-получатель:</label>
+                            <select name="sklad_getter" class="form-select" required>
+                                <option value="">-- Выберите склад --</option>
+                                {% for s in sklads %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                    {% elif doc_type == 'sell' %}
+                        <div class="form-row">
+                            <label class="form-label">Склад:</label>
+                            <select name="sklad" class="form-select" required>
+                                <option value="">-- Выберите склад --</option>
+                                {% for s in sklads %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">Клиент:</label>
+                            <select name="client" class="form-select" required>
+                                <option value="">-- Выберите клиента --</option>
+                                {% for c in clients %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                    {% endif %}
+
+                    <div class="form-row">
+                        <label class="form-label">Дата:</label>
+                        <input type="date" name="date" class="form-input" required>
+                    </div>
+
+                    <div class="form-row">
+                        <label class="form-label">Фото документа:</label>
+                        <input type="file" name="photo" class="form-input" accept="image/*">
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Строки документа</h3>
+                    <p style="color: #888; font-size: 13px; margin-bottom: 12px;">
+                        Заполните нужное количество строк. Пустые строки будут автоматически проигнорированы.
+                    </p>
+
+                    <table class="data-table" style="margin-bottom: 15px;">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">№</th>
+                                <th>Товар</th>
+                                <th style="width: 150px;">Количество</th>
+                                <th style="width: 50px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="lines-tbody">
+                            <tr class="line-row">
+                                <td>1</td>
+                                <td>
+                                    <select name="product" class="form-select" style="width: 100%; border-radius: 6px;" required>
+                                        <option value="">-- Выберите товар --</option>
+                                        {% for p in products %}
+                                        <option value="{{ p.id }}">{{ p.articul }} — {{ p.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="number" name="count" class="form-input" min="1" placeholder="Кол-во" style="width: 100%; border-radius: 6px;" required>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-danger" onclick="removeRow(this)" style="padding: 5px 10px; font-size: 12px;">✕</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <button type="button" class="btn btn-secondary" onclick="addRow()">+ Добавить строку</button>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-success">Сохранить и провести</button>
+                    <a href="{% url 'documents' %}" class="btn btn-secondary">Отмена</a>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        function addRow() {
+            const tbody = document.getElementById('lines-tbody');
+            const firstRow = tbody.querySelector('.line-row');
+            const newRow = firstRow.cloneNode(true);
+            newRow.querySelectorAll('select, input').forEach(el => el.value = '');
+            tbody.appendChild(newRow);
+            updateRowNumbers();
+        }
+
+        function removeRow(btn) {
+            const tbody = document.getElementById('lines-tbody');
+            if (tbody.querySelectorAll('.line-row').length > 1) {
+                btn.closest('.line-row').remove();
+                updateRowNumbers();
+            } else {
+                alert('Нельзя удалить единственную строку!');
+            }
+        }
+
+        function updateRowNumbers() {
+            const tbody = document.getElementById('lines-tbody');
+            const rows = tbody.querySelectorAll('.line-row');
+            rows.forEach((row, index) => {
+                row.querySelector('td:first-child').textContent = index + 1;
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Главная — Складской учёт</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <header class="header">
+        <div class="header-top">
+            <span class="header-title">Складской учёт</span>
+            <span class="header-user">
+                Пользователь: {{ user.second_name }} {{ user.first_name }} ({{ user.role.name }})
+            </span>
+            <a href="{% url 'logout' %}" class="header-logout" title="Выйти">⎋</a>
+        </div>
+        <nav class="header-nav">
+            <a href="{% url 'home' %}" class="nav-link active">Главная</a>
+            <a href="{% url 'directories' %}" class="nav-link">Справочники</a>
+            <a href="{% url 'documents' %}" class="nav-link">Документы</a>
+        </nav>
+    </header>
+
+    <main class="main-content">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="page-title">Главная</div>
+        <div class="page-subtitle">Остатки</div>
+
+        <div class="filters-bar">
+            <form method="get" class="filters-form">
+                <input type="text" name="search" class="form-input"
+                       placeholder="Поиск по артикулу или названию товара" value="{{ search }}">
+
+                <select name="sklad" class="form-select">
+                    <option value="">Фильтр по складам</option>
+                    {% for s in sklads %}
+                        <option value="{{ s.id }}" {% if sklad_id == s.id|stringformat:"d" %}selected{% endif %}>{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+
+                <select name="group" class="form-select">
+                    <option value="">Фильтр по группам товара</option>
+                    {% for g in groups %}
+                        <option value="{{ g.id }}" {% if group_id == g.id|stringformat:"d" %}selected{% endif %}>{{ g.name }}</option>
+                    {% endfor %}
+                </select>
+
+                <div class="filter-date-row">
+                    <a href="{% url 'home' %}" class="btn-link">Сбросить</a>
+                </div>
+            </form>
+        </div>
+
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Артикул</th>
+                    <th>Название товара</th>
+                    <th>Группа</th>
+                    <th>Склад</th>
+                    <th>Количество</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in products_with_stock %}
+                <tr>
+                    <td>{{ item.product.articul }}</td>
+                    <td>{{ item.product.name }}</td>
+                    <td>{{ item.product.group.name }}</td>
+                    <td>{{ item.sklad.name }}</td>
+                    <td>{{ item.stock }} шт.</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="empty-cell">Нет данных</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </main>
+</body>
+</html>

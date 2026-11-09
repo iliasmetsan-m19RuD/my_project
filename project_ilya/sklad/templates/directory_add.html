@@ -1,0 +1,77 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} — Складской учёт</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <header class="header">
+        <div class="header-top">
+            <span class="header-title">Складской учёт</span>
+            <span class="header-user">
+                Пользователь: {{ user.second_name }} {{ user.first_name }} ({{ user.role.name }})
+            </span>
+            <a href="{% url 'logout' %}" class="header-logout" title="Выйти">⎋</a>
+        </div>
+        <nav class="header-nav">
+            <a href="{% url 'home' %}" class="nav-link">Главная</a>
+            <a href="{% url 'directories' %}" class="nav-link active">Справочники</a>
+            <a href="{% url 'documents' %}" class="nav-link">Документы</a>
+        </nav>
+    </header>
+
+    <main class="main-content">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="page-title">{{ title }}</div>
+        <div class="page-subtitle">
+            <a href="{% url 'directory_detail' directory_name %}" class="btn-link">← Вернуться к справочнику</a>
+        </div>
+
+        <div class="add-doc-card">
+            <form method="post">
+                {% csrf_token %}
+
+                {% for field in fields_data %}
+                <div class="form-row">
+                    <label class="form-label">{{ field.verbose_name }}:</label>
+                    
+                    {% if field.type == 'BooleanField' %}
+                        <input type="checkbox" name="{{ field.name }}" style="width: 20px; height: 20px;">
+                    
+                    {% elif field.type == 'ForeignKey' %}
+                        <select name="{{ field.name }}" class="form-select" required>
+                            <option value="">-- Выберите {{ field.related_name }} --</option>
+                            {% for choice in field.choices %}
+                                <option value="{{ choice.id }}">{{ choice }}</option>
+                            {% endfor %}
+                        </select>
+                    
+                    {% elif field.type == 'DateField' %}
+                        <input type="date" name="{{ field.name }}" class="form-input" required>
+                    
+                    {% elif field.type == 'EmailField' %}
+                        <input type="email" name="{{ field.name }}" class="form-input" required>
+                    
+                    {% else %}
+                        <input type="text" name="{{ field.name }}" class="form-input" required>
+                    {% endif %}
+                </div>
+                {% endfor %}
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-success">Добавить</button>
+                    <a href="{% url 'directory_detail' directory_name %}" class="btn btn-secondary">Отмена</a>
+                </div>
+            </form>
+        </div>
+    </main>
+</body>
+</html>

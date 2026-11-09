@@ -1,0 +1,77 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} — Складской учёт</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <header class="header">
+        <div class="header-top">
+            <span class="header-title">Складской учёт</span>
+            <span class="header-user">
+                Пользователь: {{ user.second_name }} {{ user.first_name }} ({{ user.role.name }})
+            </span>
+            <a href="{% url 'logout' %}" class="header-logout" title="Выйти">⎋</a>
+        </div>
+        <nav class="header-nav">
+            <a href="{% url 'home' %}" class="nav-link">Главная</a>
+            <a href="{% url 'directories' %}" class="nav-link active">Справочники</a>
+            <a href="{% url 'documents' %}" class="nav-link">Документы</a>
+        </nav>
+    </header>
+
+    <main class="main-content">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="page-title">{{ title }}</div>
+        <div class="page-subtitle">
+            <a href="{% url 'directories' %}" class="btn-link">← Вернуться к списку справочников</a>
+        </div>
+
+        {% if user.can_delete %}
+        <div style="text-align: right; margin-bottom: 20px;">
+            <a href="{% url 'directory_add' directory_name %}" class="btn btn-success">+ Добавить запись</a>
+        </div>
+        {% endif %}
+
+        <table class="data-table">
+            <thead>
+                <tr>
+                    {% for header in headers %}
+                    <th>{{ header }}</th>
+                    {% endfor %}
+                    {% if user.can_delete %}
+                    <th style="width: 150px;">Действия</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    {% for cell in row %}
+                    <td>{{ cell }}</td>
+                    {% endfor %}
+                    {% if user.can_delete %}
+                    <td>
+                        <a href="{% url 'directory_edit' directory_name row.0 %}" class="btn btn-info" style="padding: 5px 12px; font-size: 13px;">Изменить</a>
+                        <a href="{% url 'directory_delete' directory_name row.0 %}" class="btn btn-danger" style="padding: 5px 12px; font-size: 13px;" onclick="return confirm('Удалить запись?')">Удалить</a>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="{{ headers|length }}" class="empty-cell">Нет данных</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </main>
+</body>
+</html>

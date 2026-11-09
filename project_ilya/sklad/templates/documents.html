@@ -1,0 +1,106 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Документы — Складской учёт</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <header class="header">
+        <div class="header-top">
+            <span class="header-title">Складской учёт</span>
+            <span class="header-user">
+                Пользователь: {{ user.second_name }} {{ user.first_name }} ({{ user.role.name }})
+            </span>
+            <a href="{% url 'logout' %}" class="header-logout" title="Выйти">⎋</a>
+        </div>
+        <nav class="header-nav">
+            <a href="{% url 'home' %}" class="nav-link">Главная</a>
+            <a href="{% url 'directories' %}" class="nav-link">Справочники</a>
+            <a href="{% url 'documents' %}" class="nav-link active">Документы</a>
+        </nav>
+    </header>
+
+    <main class="main-content">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="page-title">Документы</div>
+
+        <div class="filters-bar">
+            <form method="get" class="filters-form">
+                <select name="doc_type" class="form-select">
+                    <option value="">Все типы документов</option>
+                    <option value="plus" {% if doc_type_filter == 'plus' %}selected{% endif %}>Поставка</option>
+                    <option value="minus" {% if doc_type_filter == 'minus' %}selected{% endif %}>Списание</option>
+                    <option value="remove" {% if doc_type_filter == 'remove' %}selected{% endif %}>Перемещение</option>
+                    <option value="sell" {% if doc_type_filter == 'sell' %}selected{% endif %}>Реализация</option>
+                </select>
+
+                <select name="sklad" class="form-select">
+                    <option value="">Все склады</option>
+                    {% for s in sklads %}
+                        <option value="{{ s.id }}" {% if sklad_id == s.id|stringformat:"d" %}selected{% endif %}>{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+
+                <div class="filter-date-row">
+                    <span>Дата:</span>
+                    <span>От:</span>
+                    <input type="date" name="date_from" class="form-input" value="{{ date_from }}">
+                    <span>До:</span>
+                    <input type="date" name="date_to" class="form-input" value="{{ date_to }}">
+                    <button type="submit" class="btn btn-primary" style="padding: 8px 20px; font-size: 14px;">Применить</button>
+                    <a href="{% url 'documents' %}" class="btn-link">Сбросить</a>
+                </div>
+
+                {% if user.can_use %}
+                <div class="add-buttons">
+                    <a href="{% url 'add_document' 'plus' %}" class="btn btn-success">Добавить</a>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+
+        <div class="documents-list">
+            {% for item in documents %}
+            <div class="document-card">
+                <div class="doc-preview">
+                    {% if item.doc.photo %}
+                        <img src="{{ item.doc.photo.url }}" alt="Фото документа" class="doc-photo">
+                    {% else %}
+                        <img src="{% static 'images/placeholder.png' %}" alt="Нет фото" class="doc-photo doc-photo-placeholder">
+                    {% endif %}
+                </div>
+
+                <div class="doc-info">
+                    <div class="doc-title">{{ item.type }} №{{ item.doc.id|stringformat:"08d" }}</div>
+                    <div class="doc-meta">
+                        <span>Склад {{ item.sklad.name }}</span>
+                        <span>Дата: {{ item.doc.date|date:"d.m.Y" }}</span>
+                    </div>
+                </div>
+
+                <div class="doc-actions">
+                    <a href="{% url 'document_detail' item.doc_type item.doc.id %}" class="btn btn-info">Смотреть</a>
+                    {% if user.can_use %}
+                    <a href="{% url 'edit_document' item.doc_type item.doc.id %}" class="btn btn-secondary">Редактировать</a>
+                    {% endif %}
+                    {% if user.can_delete %}
+                    <a href="{% url 'delete_document' item.doc_type item.doc.id %}" class="btn btn-danger"
+                       onclick="return confirm('Удалить документ?')">Удалить</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <div class="empty-state">Документы не найдены</div>
+            {% endfor %}
+        </div>
+    </main>
+</body>
+</html>
